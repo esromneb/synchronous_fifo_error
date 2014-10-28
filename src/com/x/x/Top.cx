@@ -1,0 +1,40 @@
+package com.x.x;
+
+network Top {
+    out bool bit_data_out;
+	
+	source = new task {
+		out sync u8 byte;
+		u8 _seq;
+		void setup() {
+			_seq = 0;
+		}
+		void loop() {
+			byte.write(_seq);
+			_seq++;
+		}
+	};
+
+	sink = new task {
+		in sync u8 din;
+		out bool dout, dataReady;
+		u8 data;
+		void setup() {
+			dataReady.write(true);
+			dout.write(true);
+		}
+		void loop() {
+			data = din.read();
+			dataReady.write(false);
+			dout.write(false);
+			dout.write((bool)(data&0x01));
+			idle(1);
+			dataReady.write(true);
+		}
+	};
+
+	sync_fifo = new std.fifo.SynchronousFIFO({ depth: 400, width: 8 });
+	sync_fifo.reads(source.byte, sink.dataReady);
+	sync_fifo.writes(sink.din);
+	sink.writes(bit_data_out);
+}
